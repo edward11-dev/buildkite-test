@@ -87,41 +87,20 @@ steps:
         agents:
           queue: "default"
 
-      - label: "🧪 Run Tests"
+      - label: "🧪 Run Tests"  
         key: "test"
         depends_on: "install"
-        env:
-          PATH: "${PWD}/node_modules/.bin:${PATH}"
         command: |
-          echo "--- 🔍 Finding Jest Installation"
-          echo "Current directory: $(pwd)"
-          echo "Checking Jest installation:"
-          find node_modules -name "jest" -type d | head -5
-          echo "Looking for Jest executable:"
-          find node_modules -name "jest.js" -o -name "jest" | head -10
-          echo "Checking Jest symlink:"
-          if [ -L "./node_modules/.bin/jest" ]; then
-            echo "Jest symlink exists, points to: $(readlink ./node_modules/.bin/jest)"
-            echo "Resolving full path: $(readlink -f ./node_modules/.bin/jest 2>/dev/null || echo 'readlink failed')"
-          fi
-          echo "Checking npm bin directory:"
-          npm config get prefix || echo "npm prefix failed"
-          echo "NPM bin path should be: $(npm config get prefix)/bin"
-          echo "PATH during build:"
-          echo $PATH
-          echo "--- 🔧 Adding node_modules/.bin to PATH"
-          NODE_BIN_PATH="$(pwd)/node_modules/.bin"
-          echo "Node bin path: $NODE_BIN_PATH"
-          ls -la "$NODE_BIN_PATH" | head -5
-          export PATH="$NODE_BIN_PATH:$PATH"
-          echo "Updated PATH: $PATH"
-          echo "--- 🧪 Testing Jest directly"
-          echo "Jest location check:"
-          ls -la "$NODE_BIN_PATH/jest" || echo "Jest binary not found at expected location"
-          which jest || echo "Jest not found in PATH"
-          "$NODE_BIN_PATH/jest" --version 2>&1 || echo "Direct Jest execution failed"
-          echo "--- 🧪 Running test suite with explicit PATH"
-          PATH="$NODE_BIN_PATH:$PATH" npm test
+          echo "--- 🔍 Checking Working Directory & Dependencies"
+          pwd
+          ls -la
+          echo "--- 🔍 Looking for node_modules from install step"
+          find . -name "node_modules" -type d 2>/dev/null || echo "No node_modules found in current directory tree"
+          echo "--- 🔍 Installing dependencies in this step"
+          npm install --verbose
+          echo "--- 🔍 Verifying installation"
+          ls -la node_modules/.bin/ | grep jest || echo "Jest not installed"
+          npm test
         agents:
           queue: "default"
         artifact_paths:
