@@ -197,29 +197,40 @@ steps:
             exit 1
           fi
           
-          echo "--- 🧹 Aggressive container cleanup"
+          echo "--- 🧹 Cleaning ALL containers using port 3001"
           # Show what's currently running
           echo "Current containers using port 3001:"
-          docker ps --filter "publish=3001" || echo "No containers found with port 3001"
+          docker ps --filter "publish=3001"
           
-          # Force stop and remove any containers with our name
-          docker stop buildkite-test-staging 2>/dev/null || echo "No buildkite-test-staging to stop"
-          docker rm -f buildkite-test-staging 2>/dev/null || echo "No buildkite-test-staging to remove"
-          
-          # Force remove any containers using port 3001
-          CONTAINERS_ON_3001=$(docker ps -q --filter "publish=3001" 2>/dev/null)
+          # Get ALL container IDs using port 3001 (both running and stopped)
+          CONTAINERS_ON_3001=$(docker ps -aq --filter "publish=3001" 2>/dev/null)
           if [ ! -z "$CONTAINERS_ON_3001" ]; then
             echo "Found containers on port 3001: $CONTAINERS_ON_3001"
-            echo "Force stopping and removing them..."
+            echo "Force stopping and removing ALL of them..."
             docker stop $CONTAINERS_ON_3001 2>/dev/null || true
             docker rm -f $CONTAINERS_ON_3001 2>/dev/null || true
+          else
+            echo "No containers found using port 3001"
           fi
           
+          # Also clean up by various possible names (in case naming changed)
+          for name in buildkite-test-staging buildkite-sample-staging buildkite-app-staging; do
+            docker stop $name 2>/dev/null || true
+            docker rm -f $name 2>/dev/null || true
+          done
+          
           # Wait a moment for cleanup
-          sleep 2
+          sleep 3
           
           echo "--- 🔍 Final verification"
-          docker ps --filter "publish=3001" && echo "❌ Containers still on port 3001!" || echo "✅ Port 3001 is clear"
+          REMAINING=$(docker ps -q --filter "publish=3001" 2>/dev/null)
+          if [ ! -z "$REMAINING" ]; then
+            echo "❌ Containers still on port 3001: $REMAINING"
+            docker ps --filter "publish=3001"
+            exit 1
+          else
+            echo "✅ Port 3001 is clear"
+          fi
           
           # Run new container
           docker run -d \
@@ -265,29 +276,40 @@ steps:
             exit 1
           fi
           
-          echo "--- 🧹 Aggressive container cleanup for production"
-          # Show what's currently running  
+          echo "--- 🧹 Cleaning ALL containers using port 3000"
+          # Show what's currently running
           echo "Current containers using port 3000:"
-          docker ps --filter "publish=3000" || echo "No containers found with port 3000"
+          docker ps --filter "publish=3000"
           
-          # Force stop and remove any containers with our name
-          docker stop buildkite-test-prod 2>/dev/null || echo "No buildkite-test-prod to stop"
-          docker rm -f buildkite-test-prod 2>/dev/null || echo "No buildkite-test-prod to remove"
-          
-          # Force remove any containers using port 3000
-          CONTAINERS_ON_3000=$(docker ps -q --filter "publish=3000" 2>/dev/null)
+          # Get ALL container IDs using port 3000 (both running and stopped)
+          CONTAINERS_ON_3000=$(docker ps -aq --filter "publish=3000" 2>/dev/null)
           if [ ! -z "$CONTAINERS_ON_3000" ]; then
             echo "Found containers on port 3000: $CONTAINERS_ON_3000"
-            echo "Force stopping and removing them..."
+            echo "Force stopping and removing ALL of them..."
             docker stop $CONTAINERS_ON_3000 2>/dev/null || true
             docker rm -f $CONTAINERS_ON_3000 2>/dev/null || true
+          else
+            echo "No containers found using port 3000"
           fi
           
+          # Also clean up by various possible names (in case naming changed)
+          for name in buildkite-test-prod buildkite-sample-prod buildkite-app-prod; do
+            docker stop $name 2>/dev/null || true
+            docker rm -f $name 2>/dev/null || true
+          done
+          
           # Wait a moment for cleanup
-          sleep 2
+          sleep 3
           
           echo "--- 🔍 Final verification"
-          docker ps --filter "publish=3000" && echo "❌ Containers still on port 3000!" || echo "✅ Port 3000 is clear"
+          REMAINING=$(docker ps -q --filter "publish=3000" 2>/dev/null)
+          if [ ! -z "$REMAINING" ]; then
+            echo "❌ Containers still on port 3000: $REMAINING"
+            docker ps --filter "publish=3000"
+            exit 1
+          else
+            echo "✅ Port 3000 is clear"
+          fi
           
           # Run new container
           docker run -d \
