@@ -1,0 +1,190 @@
+env:
+  NODE_ENV: "test"
+  
+steps:
+  - group: "🔍 Code Quality"
+    steps:
+      - label: "📦 Install Dependencies"
+        key: "install"
+        command: |
+          echo "--- 📦 Installing dependencies"
+          npm ci
+        agents:
+          queue: "default"
+
+      - label: "🧹 Lint Code"
+        key: "lint"
+        depends_on: "install"
+        command: |
+          echo "--- 🧹 Running ESLint"
+          npm run lint
+        agents:
+          queue: "default"
+
+      - label: "🧪 Run Tests"
+        key: "test"
+        depends_on: "install"
+        command: |
+          echo "--- 🧪 Running test suite"
+          npm test
+          echo "--- 📊 Generating coverage report"
+          npm run test:coverage
+        agents:
+          queue: "default"
+        artifact_paths:
+          - "coverage/**/*"
+
+  - wait: "~"
+
+  - group: "🐳 Build & Security"
+    steps:
+      - label: "🐳 Build Docker Image"
+        key: "build"
+        command: |
+          echo "--- 🐳 Building Docker image"
+          export IMAGE_TAG="buildkite-test:$$BUILDKITE_COMMIT"
+          docker build --target production -t $$IMAGE_TAG .
+          
+          echo "--- 🏷️ Tagging image"
+          docker tag $$IMAGE_TAG buildkite-test:latest
+          
+          echo "--- 💾 Saving image for later steps"
+          docker save $$IMAGE_TAG | gzip > image.tar.gz
+        agents:
+          queue: "default"
+        artifact_paths:
+          - "image.tar.gz"
+
+      - label: "🔒 Security Scan"
+        key: "security"
+        depends_on: "build"
+        command: |
+          echo "--- 🔒 Loading Docker image"
+          docker load < image.tar.gz
+          
+          echo "--- 🔍 Running security scan (Trivy)"
+          # Install Trivy if not available
+          if ! command -v trivy &> /dev/null; then
+            echo "Installing Trivy..."
+            if [[ "$(uname)" == "Darwin" ]]; then
+              brew install aquasecurity/trivy/trivy
+            else
+              wget -qO- https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+            fi
+          fi
+          
+          # Scan the image
+          trivy image --exit-code 0 --no-progress --format table buildkite-test:$$BUILDKITE_COMMIT
+        agents:
+          queue: "default"
+        allow_dependency_failure: true
+
+  - wait: "~"
+
+  - group: "🚀 Deploy"
+    steps:
+      - label: "🚀 Deploy to Staging"
+        key: "deploy-staging"
+        command: |
+          echo "--- 🚀 Deploying to staging environment"
+          docker load < image.tar.gz
+          
+          # Stop existing container if running
+          docker stop buildkite-test-staging 2>/dev/null || true
+          docker rm buildkite-test-staging 2>/dev/null || true
+          
+          # Run new container
+          docker run -d \
+            --name buildkite-test-staging \
+            -p 3001:3000 \
+            -e NODE_ENV=staging \
+            buildkite-test:$$BUILDKITE_COMMIT
+          
+          echo "--- ⏳ Waiting for application to start"
+          sleep 10
+          
+          echo "--- 🏥 Health check"
+          curl -f http://localhost:3001/health || exit 1
+          
+          echo "✅ Staging deployment successful!"
+          echo "🌐 Application available at: http://localhost:3001"
+        agents:
+          queue: "default"
+
+      - block: "🎯 Deploy to Production?"
+        prompt: "Deploy to production environment?"
+        if: build.branch == "main"
+
+      - label: "🌟 Deploy to Production"
+        key: "deploy-production"
+        depends_on: "deploy-staging"
+        command: |
+          echo "--- 🌟 Deploying to production environment"
+          docker load < image.tar.gz
+          
+          # Stop existing container if running
+          docker stop buildkite-test-prod 2>/dev/null || true
+          docker rm buildkite-test-prod 2>/dev/null || true
+          
+          # Run new container
+          docker run -d \
+            --name buildkite-test-prod \
+            -p 3000:3000 \
+            -e NODE_ENV=production \
+            buildkite-test:$$BUILDKITE_COMMIT
+          
+          echo "--- ⏳ Waiting for application to start"
+          sleep 10
+          
+          echo "--- 🏥 Health check"
+          curl -f http://localhost:3000/health || exit 1
+          
+          echo "✅ Production deployment successful!"
+          echo "🌐 Application available at: http://localhost:3000"
+        agents:
+          queue: "default"
+        if: build.branch == "main"
+
+  - group: "📊 Post-Deploy"
+    steps:
+      - label: "🧪 Integration Tests"
+        key: "integration-tests"
+        depends_on: "deploy-staging"
+        command: |
+          echo "--- 🧪 Running integration tests against staging"
+          
+          # Basic API tests
+          echo "Testing home endpoint..."
+          curl -f http://localhost:3001/ | jq .
+          
+          echo "Testing users endpoint..."
+          curl -f http://localhost:3001/api/users | jq .
+          
+          echo "Testing user creation..."
+          curl -f -X POST http://localhost:3001/api/users \
+            -H "Content-Type: application/json" \
+            -d '{"name":"Test User","email":"test@example.com"}' | jq .
+          
+          echo "✅ Integration tests passed!"
+        agents:
+          queue: "default"
+
+      - label: "📈 Performance Test"
+        key: "performance"
+        depends_on: "deploy-staging"
+        command: |
+          echo "--- 📈 Running basic performance test"
+          
+          # Install curl and time if needed
+          which curl || (echo "curl not found" && exit 1)
+          
+          echo "Running 10 concurrent requests..."
+          for i in {1..10}; do
+            (curl -s http://localhost:3001/health > /dev/null && echo "Request $i: OK") &
+          done
+          wait
+          
+          echo "✅ Performance test completed!"
+        agents:
+          queue: "default"
+        soft_fail: true
