@@ -13,11 +13,31 @@ steps:
           pwd
           echo "Node.js version: $(node --version)"
           echo "npm version: $(npm --version)"
+          echo "--- 🔍 Before npm ci"
+          ls -la
+          echo "package.json exists: $(test -f package.json && echo 'YES' || echo 'NO')"
+          echo "package-lock.json exists: $(test -f package-lock.json && echo 'YES' || echo 'NO')"
           echo "--- 📦 Installing dependencies"
-          npm ci
-          echo "--- 🔍 Checking installed packages"
-          ls node_modules/.bin/ | grep eslint || echo "ESLint not found in node_modules/.bin/"
-          npm list eslint || echo "ESLint not in package list"
+          if [ -f package-lock.json ]; then
+            echo "Using npm ci (lockfile found)"
+            npm ci --verbose
+          else
+            echo "No lockfile found, using npm install"
+            npm install --verbose
+          fi
+          echo "--- 🔍 After npm ci - checking what was installed"
+          echo "node_modules exists: $(test -d node_modules && echo 'YES' || echo 'NO')"
+          if [ -d node_modules ]; then
+            echo "node_modules size: $(du -sh node_modules)"
+            echo "Contents of node_modules/.bin:"
+            ls -la node_modules/.bin/ | head -20
+            echo "--- Checking specific packages"
+            ls node_modules/.bin/ | grep -E "(jest|eslint)" || echo "Jest/ESLint binaries not found"
+          else
+            echo "❌ node_modules directory was not created!"
+          fi
+          echo "--- npm list output"
+          npm list --depth=0 || echo "npm list failed"
         agents:
           queue: "default"
 
