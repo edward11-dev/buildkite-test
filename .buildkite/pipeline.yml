@@ -7,6 +7,12 @@ steps:
       - label: "📦 Install Dependencies"
         key: "install"
         command: |
+          echo "--- 🖥️ Agent Environment Info"
+          hostname
+          whoami
+          pwd
+          echo "Node.js version: $(node --version)"
+          echo "npm version: $(npm --version)"
           echo "--- 📦 Installing dependencies"
           npm ci
           echo "--- 🔍 Checking installed packages"
@@ -19,20 +25,34 @@ steps:
         key: "lint"
         depends_on: "install"
         command: |
-          echo "--- 🔍 Debugging ESLint Location"
-          pwd
+          echo "--- 🔍 Full Agent Environment Debug"
+          echo "Current working directory: $(pwd)"
+          echo "Home directory: $HOME"
+          echo "Build directory contents:"
           ls -la
+          echo "--- Node.js Environment"
+          echo "Node path: $(which node)"
+          echo "npm path: $(which npm)"
+          echo "npm global packages:"
+          npm list -g --depth=0 2>/dev/null | head -5
           echo "--- Checking node_modules"
-          ls -la node_modules/ | head -10
-          echo "--- Checking node_modules/.bin"
-          ls -la node_modules/.bin/ | grep eslint || echo "No ESLint binary found"
-          echo "--- Checking package.json"
-          cat package.json | grep eslint
-          echo "--- Checking npm list"
+          if [ -d "node_modules" ]; then
+            echo "node_modules exists, size: $(du -sh node_modules)"
+            ls -la node_modules/.bin/ | head -10
+            echo "ESLint in .bin:"
+            ls -la node_modules/.bin/ | grep eslint || echo "No ESLint binary found"
+          else
+            echo "❌ node_modules directory not found!"
+          fi
+          echo "--- Package Dependencies"
+          cat package.json | grep -A 10 -B 2 eslint
+          echo "--- npm list eslint"
           npm list eslint || echo "ESLint not in dependencies"
-          echo "--- Trying different ESLint paths"
-          which eslint || echo "eslint not in PATH"
+          echo "--- Trying different ESLint methods"
+          which eslint || echo "eslint not in global PATH"
           npx eslint --version || echo "npx eslint failed"
+          echo "--- File permissions check"
+          ls -la node_modules/.bin/eslint 2>/dev/null || echo "ESLint binary doesn't exist"
           echo "--- 🧹 Running ESLint"
           npm run lint
         agents:
