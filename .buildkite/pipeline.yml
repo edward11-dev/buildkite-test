@@ -19,9 +19,21 @@ steps:
         key: "lint"
         depends_on: "install"
         command: |
+          echo "--- 🔍 Debugging ESLint Location"
+          pwd
+          ls -la
+          echo "--- Checking node_modules"
+          ls -la node_modules/ | head -10
+          echo "--- Checking node_modules/.bin"
+          ls -la node_modules/.bin/ | grep eslint || echo "No ESLint binary found"
+          echo "--- Checking package.json"
+          cat package.json | grep eslint
+          echo "--- Checking npm list"
+          npm list eslint || echo "ESLint not in dependencies"
+          echo "--- Trying different ESLint paths"
+          which eslint || echo "eslint not in PATH"
+          npx eslint --version || echo "npx eslint failed"
           echo "--- 🧹 Running ESLint"
-          echo "Checking if ESLint is available..."
-          npx eslint --version || echo "ESLint not found, installing..."
           npm run lint
         agents:
           queue: "default"
