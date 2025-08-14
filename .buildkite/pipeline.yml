@@ -18,15 +18,24 @@ steps:
           echo "package.json exists: $(test -f package.json && echo 'YES' || echo 'NO')"
           echo "package-lock.json exists: $(test -f package-lock.json && echo 'YES' || echo 'NO')"
           echo "--- 📦 Installing dependencies"
+          echo "Current directory files:"
+          ls -la | grep -E "(package|node_modules)"
           if [ -f package-lock.json ]; then
-            echo "Using npm ci (lockfile found)"
-            npm ci --verbose
+            echo "✅ package-lock.json found, using npm ci"
+            npm ci --verbose || (echo "❌ npm ci failed!" && exit 1)
           else
-            echo "No lockfile found, using npm install"
-            npm install --verbose
+            echo "⚠️ No package-lock.json found, using npm install"
+            npm install --verbose || (echo "❌ npm install failed!" && exit 1)
+            echo "📄 package-lock.json should now be created"
+            ls -la package-lock.json || echo "package-lock.json still missing"
           fi
-          echo "--- 🔍 After npm ci - checking what was installed"
+          echo "--- 🔍 After installation - checking what was installed"
           echo "node_modules exists: $(test -d node_modules && echo 'YES' || echo 'NO')"
+          if [ ! -d node_modules ]; then
+            echo "❌ CRITICAL: node_modules was not created!"
+            echo "Installation failed but didn't exit. Forcing failure."
+            exit 1
+          fi
           if [ -d node_modules ]; then
             echo "node_modules size: $(du -sh node_modules)"
             echo "Contents of node_modules/.bin:"
