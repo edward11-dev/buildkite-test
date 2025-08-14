@@ -20,7 +20,7 @@ git --version
 
 ```bash
 # 1. Navigate to the project
-cd buildkite-sample-app
+cd buildkite-test
 
 # 2. Install dependencies
 npm install
