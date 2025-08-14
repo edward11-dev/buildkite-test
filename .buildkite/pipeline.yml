@@ -135,16 +135,21 @@ steps:
           pwd
           ls -la
           echo "--- 📥 Downloading artifact from previous step"
-          buildkite-agent artifact download "image.tar.gz" . || echo "Artifact download failed"
+          if ! buildkite-agent artifact download "image.tar.gz" .; then
+            echo "❌ CRITICAL ERROR: Failed to download Docker image artifact!"
+            echo "❌ This indicates the build step failed or didn't upload the artifact."
+            exit 1
+          fi
           ls -la image.tar.gz || echo "image.tar.gz not found after download"
           
           if [ -f "image.tar.gz" ]; then
             echo "--- 🔒 Loading Docker image from artifact"
             docker load < image.tar.gz
           else
-            echo "❌ image.tar.gz not found, rebuilding image"
-            export IMAGE_TAG="buildkite-test:$BUILDKITE_COMMIT"
-            docker build --target production -t $IMAGE_TAG .
+            echo "❌ CRITICAL ERROR: Docker image artifact not found!"
+            echo "❌ The build step must have failed to create/upload the image."
+            echo "❌ Cannot proceed with security scan without the built image."
+            exit 1
           fi
           
           echo "--- 🔍 Running security scan (Trivy)"
@@ -174,8 +179,23 @@ steps:
       - label: "🚀 Deploy to Staging"
         key: "deploy-staging"
         command: |
+          echo "--- 📥 Downloading Docker image artifact"
+          if ! buildkite-agent artifact download "image.tar.gz" .; then
+            echo "❌ CRITICAL ERROR: Failed to download Docker image artifact!"
+            echo "❌ This indicates the build step failed or didn't upload the artifact."
+            exit 1
+          fi
+          ls -la image.tar.gz || echo "image.tar.gz not found after download"
+          
           echo "--- 🚀 Deploying to staging environment"
-          docker load < image.tar.gz
+          if [ -f "image.tar.gz" ]; then
+            docker load < image.tar.gz
+          else
+            echo "❌ CRITICAL ERROR: Docker image artifact not found!"
+            echo "❌ Cannot deploy to staging without the built and tested image."
+            echo "❌ Please check the build and security scan steps for failures."
+            exit 1
+          fi
           
           # Stop existing container if running
           docker stop buildkite-test-staging 2>/dev/null || true
@@ -207,8 +227,23 @@ steps:
         key: "deploy-production"
         depends_on: "deploy-staging"
         command: |
+          echo "--- 📥 Downloading Docker image artifact"
+          if ! buildkite-agent artifact download "image.tar.gz" .; then
+            echo "❌ CRITICAL ERROR: Failed to download Docker image artifact!"
+            echo "❌ This indicates the build step failed or didn't upload the artifact."
+            exit 1
+          fi
+          ls -la image.tar.gz || echo "image.tar.gz not found after download"
+          
           echo "--- 🌟 Deploying to production environment"
-          docker load < image.tar.gz
+          if [ -f "image.tar.gz" ]; then
+            docker load < image.tar.gz
+          else
+            echo "❌ CRITICAL ERROR: Docker image artifact not found!"
+            echo "❌ Cannot deploy to production without the built and tested image."
+            echo "❌ Please check the build, security, and staging steps for failures."
+            exit 1
+          fi
           
           # Stop existing container if running
           docker stop buildkite-test-prod 2>/dev/null || true
