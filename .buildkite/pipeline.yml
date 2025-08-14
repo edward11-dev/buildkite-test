@@ -82,14 +82,30 @@ steps:
         key: "test"
         depends_on: "install"
         command: |
-          echo "--- 🔍 Checking test dependencies"
+          echo "--- 🔍 Debugging Jest Issue"
+          pwd
+          echo "Working directory contents:"
+          ls -la
+          echo "Checking if node_modules exists:"
+          ls -la node_modules/ | head -5
+          echo "Checking Jest in .bin:"
           ls -la node_modules/.bin/ | grep jest || echo "Jest not found in .bin"
-          npm list jest || echo "Jest not in dependencies"
-          npm list supertest || echo "Supertest not in dependencies"
+          echo "Direct file check:"
+          if [ -f "./node_modules/.bin/jest" ]; then
+            echo "✅ Jest binary exists at ./node_modules/.bin/jest"
+            ls -la ./node_modules/.bin/jest
+          else
+            echo "❌ Jest binary NOT found at ./node_modules/.bin/jest"
+          fi
+          echo "Trying different Jest execution methods:"
+          echo "Method 1: Direct path"
+          ./node_modules/.bin/jest --version 2>&1 || echo "Direct path failed"
+          echo "Method 2: Node execution"
+          node ./node_modules/.bin/jest --version 2>&1 || echo "Node execution failed"
+          echo "Method 3: NPX"
+          npx jest --version 2>&1 || echo "NPX failed"
           echo "--- 🧪 Running test suite"
           npm test
-          echo "--- 📊 Generating coverage report"
-          npm run test:coverage
         agents:
           queue: "default"
         artifact_paths:
