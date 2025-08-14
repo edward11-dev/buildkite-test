@@ -131,8 +131,17 @@ steps:
         key: "security"
         depends_on: "build"
         command: |
-          echo "--- 🔒 Loading Docker image"
-          docker load < image.tar.gz
+          echo "--- 🔍 Checking for Docker image artifact"
+          pwd
+          ls -la
+          if [ ! -f "image.tar.gz" ]; then
+            echo "❌ image.tar.gz not found, rebuilding image"
+            export IMAGE_TAG="buildkite-test:$BUILDKITE_COMMIT"
+            docker build --target production -t $IMAGE_TAG .
+          else
+            echo "--- 🔒 Loading Docker image from artifact"
+            docker load < image.tar.gz
+          fi
           
           echo "--- 🔍 Running security scan (Trivy)"
           # Install Trivy if not available
@@ -146,7 +155,10 @@ steps:
           fi
           
           # Scan the image
-          trivy image --exit-code 0 --no-progress --format table buildkite-test:$$BUILDKITE_COMMIT
+          echo "--- 🔍 Available Docker images:"
+          docker images | grep buildkite-test || echo "No buildkite-test images found"
+          echo "--- 🔍 Scanning image: buildkite-test:$BUILDKITE_COMMIT"
+          trivy image --exit-code 0 --no-progress --format table buildkite-test:$BUILDKITE_COMMIT
         agents:
           queue: "default"
         allow_dependency_failure: true
