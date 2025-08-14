@@ -232,12 +232,14 @@ steps:
             echo "✅ Port 3001 is clear"
           fi
           
-          # Run new container
+          # Run new container with unique name
+          CONTAINER_NAME="buildkite-test-staging-$(date +%s)-${BUILDKITE_COMMIT:0:8}"
+          echo "--- 🚀 Starting container: $CONTAINER_NAME"
           docker run -d \
-            --name buildkite-test-staging \
+            --name "$CONTAINER_NAME" \
             -p 3001:3000 \
             -e NODE_ENV=staging \
-            buildkite-test:$$BUILDKITE_COMMIT
+            buildkite-test:$BUILDKITE_COMMIT
           
           echo "--- ⏳ Waiting for application to start"
           sleep 10
@@ -247,6 +249,7 @@ steps:
           
           echo "✅ Staging deployment successful!"
           echo "🌐 Application available at: http://localhost:3001"
+          echo "🐳 Container name: $CONTAINER_NAME"
         agents:
           queue: "default"
 
@@ -311,12 +314,14 @@ steps:
             echo "✅ Port 3000 is clear"
           fi
           
-          # Run new container
+          # Run new container with unique name
+          CONTAINER_NAME="buildkite-test-prod-$(date +%s)-${BUILDKITE_COMMIT:0:8}"
+          echo "--- 🚀 Starting container: $CONTAINER_NAME"
           docker run -d \
-            --name buildkite-test-prod \
+            --name "$CONTAINER_NAME" \
             -p 3000:3000 \
             -e NODE_ENV=production \
-            buildkite-test:$$BUILDKITE_COMMIT
+            buildkite-test:$BUILDKITE_COMMIT
           
           echo "--- ⏳ Waiting for application to start"
           sleep 10
@@ -326,6 +331,7 @@ steps:
           
           echo "✅ Production deployment successful!"
           echo "🌐 Application available at: http://localhost:3000"
+          echo "🐳 Container name: $CONTAINER_NAME"
         agents:
           queue: "default"
         if: build.branch == "main"
