@@ -82,28 +82,28 @@ steps:
         key: "test"
         depends_on: "install"
         command: |
-          echo "--- 🔍 Debugging Jest Issue"
-          pwd
-          echo "Working directory contents:"
-          ls -la
-          echo "Checking if node_modules exists:"
-          ls -la node_modules/ | head -5
-          echo "Checking Jest in .bin:"
-          ls -la node_modules/.bin/ | grep jest || echo "Jest not found in .bin"
-          echo "Direct file check:"
-          if [ -f "./node_modules/.bin/jest" ]; then
-            echo "✅ Jest binary exists at ./node_modules/.bin/jest"
-            ls -la ./node_modules/.bin/jest
-          else
-            echo "❌ Jest binary NOT found at ./node_modules/.bin/jest"
+          echo "--- 🔍 Finding Jest Installation"
+          echo "Current directory: $(pwd)"
+          echo "Checking Jest installation:"
+          find node_modules -name "jest" -type d | head -5
+          echo "Looking for Jest executable:"
+          find node_modules -name "jest.js" -o -name "jest" | head -10
+          echo "Checking Jest symlink:"
+          if [ -L "./node_modules/.bin/jest" ]; then
+            echo "Jest symlink exists, points to: $(readlink ./node_modules/.bin/jest)"
+            echo "Resolving full path: $(readlink -f ./node_modules/.bin/jest 2>/dev/null || echo 'readlink failed')"
           fi
-          echo "Trying different Jest execution methods:"
-          echo "Method 1: Direct path"
-          ./node_modules/.bin/jest --version 2>&1 || echo "Direct path failed"
-          echo "Method 2: Node execution"
-          node ./node_modules/.bin/jest --version 2>&1 || echo "Node execution failed"
-          echo "Method 3: NPX"
-          npx jest --version 2>&1 || echo "NPX failed"
+          echo "Checking npm bin directory:"
+          npm config get prefix || echo "npm prefix failed"
+          echo "NPM bin path should be: $(npm config get prefix)/bin"
+          echo "PATH during build:"
+          echo $PATH
+          echo "--- 🔧 Adding node_modules/.bin to PATH"
+          export PATH="$(pwd)/node_modules/.bin:$PATH"
+          echo "Updated PATH: $PATH"
+          echo "--- 🧪 Testing Jest directly"
+          which jest || echo "Jest not found in PATH"
+          jest --version 2>&1 || echo "Jest version check failed"
           echo "--- 🧪 Running test suite"
           npm test
         agents:
