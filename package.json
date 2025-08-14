@@ -9,8 +9,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "lint": "eslint src/",
-    "lint:fix": "eslint src/ --fix",
+    "lint": "npx eslint src/",
+    "lint:fix": "npx eslint src/ --fix",
     "build": "echo 'Build completed'",
     "docker:build": "docker build -t buildkite-test .",
     "docker:run": "docker run -p 3000:3000 buildkite-test"
