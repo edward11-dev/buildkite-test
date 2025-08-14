@@ -9,6 +9,9 @@ steps:
         command: |
           echo "--- 📦 Installing dependencies"
           npm ci
+          echo "--- 🔍 Checking installed packages"
+          ls node_modules/.bin/ | grep eslint || echo "ESLint not found in node_modules/.bin/"
+          npm list eslint || echo "ESLint not in package list"
         agents:
           queue: "default"
 
@@ -17,6 +20,8 @@ steps:
         depends_on: "install"
         command: |
           echo "--- 🧹 Running ESLint"
+          echo "Checking if ESLint is available..."
+          npx eslint --version || echo "ESLint not found, installing..."
           npm run lint
         agents:
           queue: "default"
