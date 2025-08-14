@@ -81,6 +81,8 @@ steps:
       - label: "🧪 Run Tests"
         key: "test"
         depends_on: "install"
+        env:
+          PATH: "${PWD}/node_modules/.bin:${PATH}"
         command: |
           echo "--- 🔍 Finding Jest Installation"
           echo "Current directory: $(pwd)"
@@ -99,13 +101,18 @@ steps:
           echo "PATH during build:"
           echo $PATH
           echo "--- 🔧 Adding node_modules/.bin to PATH"
-          export PATH="$(pwd)/node_modules/.bin:$PATH"
+          NODE_BIN_PATH="$(pwd)/node_modules/.bin"
+          echo "Node bin path: $NODE_BIN_PATH"
+          ls -la "$NODE_BIN_PATH" | head -5
+          export PATH="$NODE_BIN_PATH:$PATH"
           echo "Updated PATH: $PATH"
           echo "--- 🧪 Testing Jest directly"
+          echo "Jest location check:"
+          ls -la "$NODE_BIN_PATH/jest" || echo "Jest binary not found at expected location"
           which jest || echo "Jest not found in PATH"
-          jest --version 2>&1 || echo "Jest version check failed"
-          echo "--- 🧪 Running test suite"
-          npm test
+          "$NODE_BIN_PATH/jest" --version 2>&1 || echo "Direct Jest execution failed"
+          echo "--- 🧪 Running test suite with explicit PATH"
+          PATH="$NODE_BIN_PATH:$PATH" npm test
         agents:
           queue: "default"
         artifact_paths:
