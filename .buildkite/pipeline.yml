@@ -62,6 +62,10 @@ steps:
         key: "test"
         depends_on: "install"
         command: |
+          echo "--- 🔍 Checking test dependencies"
+          ls -la node_modules/.bin/ | grep jest || echo "Jest not found in .bin"
+          npm list jest || echo "Jest not in dependencies"
+          npm list supertest || echo "Supertest not in dependencies"
           echo "--- 🧪 Running test suite"
           npm test
           echo "--- 📊 Generating coverage report"

@@ -6,9 +6,9 @@
   "scripts": {
     "start": "node src/app.js",
     "dev": "npx nodemon src/app.js",
-    "test": "npx jest",
-    "test:watch": "npx jest --watch", 
-    "test:coverage": "npx jest --coverage",
+    "test": "./node_modules/.bin/jest",
+    "test:watch": "./node_modules/.bin/jest --watch", 
+    "test:coverage": "./node_modules/.bin/jest --coverage",
     "lint": "npx eslint@8 src/",
     "lint:fix": "npx eslint@8 src/ --fix",
     "build": "echo 'Build completed'",
